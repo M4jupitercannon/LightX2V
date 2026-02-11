@@ -35,15 +35,20 @@ def get_default_config():
     return default_config
 
 
-def set_config(args):
+def set_args2config(args):
     config = get_default_config()
     config.update({k: v for k, v in vars(args).items() if k not in ALL_INPUT_INFO_KEYS})
+    return config
 
+
+def auto_calc_config(config):
     if config.get("config_json", None) is not None:
         logger.info(f"Loading some config from {config['config_json']}")
         with open(config["config_json"], "r") as f:
             config_json = json.load(f)
         config.update(config_json)
+
+    assert os.path.exists(config["model_path"]), f"Model path not found: {config['model_path']}"
 
     if config["model_cls"] in ["hunyuan_video_1.5", "hunyuan_video_1.5_distill"]:  # Special config for hunyuan video 1.5 model folder structure
         config["transformer_model_path"] = os.path.join(config["model_path"], "transformer", config["transformer_model_name"])  # transformer_model_name: [480p_t2v, 480p_i2v, 720p_t2v, 720p_i2v]
@@ -86,7 +91,6 @@ def set_config(args):
         elif os.path.exists(os.path.join(config["model_path"], "transformer", "config.json")):
             with open(os.path.join(config["model_path"], "transformer", "config.json"), "r") as f:
                 model_config = json.load(f)
-
             if config["model_cls"] == "z_image":
                 # https://huggingface.co/Tongyi-MAI/Z-Image-Turbo/blob/main/transformer/config.json
                 z_image_patch_size = model_config.pop("all_patch_size", [2])
@@ -125,6 +129,12 @@ def set_config(args):
             elif "block_out_channels" in vae_config:
                 config["vae_scale_factor"] = 2 ** (len(vae_config["block_out_channels"]) - 1)
 
+    return config
+
+
+def set_config(args):
+    config = set_args2config(args)
+    config = auto_calc_config(config)
     return config
 
 
